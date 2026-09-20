@@ -1,0 +1,11 @@
+﻿@'
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+db.sqlite3
+.env
+node_modules/
+dist/
+.DS_Store
+'@ | Set-Content -Encoding ascii ..\.gitignore
