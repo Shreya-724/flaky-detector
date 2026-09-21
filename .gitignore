@@ -8,4 +8,4 @@ db.sqlite3
 node_modules/
 dist/
 .DS_Store
-'@ | Set-Content -Encoding ascii ..\.gitignore
+'@ | Set-Content -Encoding ascii ..\.gitignorereport.xml
