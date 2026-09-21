@@ -126,3 +126,8 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]   # the Vite dev server
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {"anon": "120/min"},
+}

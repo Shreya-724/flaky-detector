@@ -16,6 +16,7 @@ class Project(models.Model):
     slug = models.SlugField(unique=True)
     repo = models.CharField(max_length=200, blank=True, help_text="owner/repo")
     default_branch = models.CharField(max_length=100, default="main")
+    is_public = models.BooleanField(default=False, help_text="Public projects can be read without a token.")
     # Store only a hash of the API token, like a password. Show the raw token once.
     token_hash = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

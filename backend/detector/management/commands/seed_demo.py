@@ -34,7 +34,7 @@ class Command(BaseCommand):
         if project is None:
             # The seed goes through ingest_report directly, so the token is not needed.
             project, _token = Project.create_with_token(
-                name="Demo (seeded)", slug=SLUG, default_branch="main"
+                name="Demo (seeded)", slug=SLUG, default_branch="main", is_public=True
             )
 
         runs = generate_runs(commits=opts["commits"], seed=opts["seed"])
@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 branch=run.branch,
                 pr_number=None,
                 started_at=run.started_at,
-                duration_seconds=None,
+                duration_seconds=240 + int(run.commit_sha[:4], 16) % 180,
             )
             report = ParsedReport(
                 cases=run.cases,
