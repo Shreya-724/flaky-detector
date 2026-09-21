@@ -6,16 +6,16 @@ pytest and feed it hand-built data.
 
 Score (0-100) = 100 * ( W_CONFLICT * A  +  w * (W_FLIP * B + W_INTERMITTENT * C) )
 
-  A  conflict evidence : same commit (+ same job) produced BOTH pass and fail.
-                         This is direct proof, so it needs no minimum sample.
-                         A = 1 - exp(-conflicts / CONFLICT_K)   (saturating)
-  B  flip rate         : how often consecutive default-branch results change
-                         pass<->fail, scaled so FLIP_SATURATION (30%) = maxed out.
+A  conflict evidence : same commit (+ same job) produced BOTH pass and fail.
+                        This is direct proof, so it needs no minimum sample.
+                        A = 1 - exp(-conflicts / CONFLICT_K)   (saturating)
+B  flip rate         : how often consecutive default-branch results change
+                        pass<->fail, scaled so FLIP_SATURATION (30%) = maxed out.
   C  intermittency     : 4 * p * (1 - p), p = failure rate. 0 for always-pass
-                         AND always-fail (a consistently failing test is
+                        AND always-fail (a consistently failing test is
                          *broken*, not flaky), peaks at p = 0.5.
-  w  sample weight     : min(1, executions / FULL_CONFIDENCE_AT). B and C are
-                         statistical, so they're damped when data is thin.
+w  sample weight     : min(1, executions / FULL_CONFIDENCE_AT). B and C are
+                        statistical, so they're damped when data is thin.
 
 All weights/thresholds below are starting heuristics. Tune them against your
 seeded demo data, and say so in the README.
@@ -81,7 +81,7 @@ def compute_flakiness(executions: list[Execution]) -> FlakinessResult:
 
     # --- B: flip rate (default branch only, so PR churn doesn't pollute it) --
     main = sorted((e for e in executions if e.on_default_branch),
-                  key=lambda e: e.executed_at)
+                key=lambda e: e.executed_at)
     if len(main) >= 2:
         flips = sum(1 for prev, cur in zip(main, main[1:]) if prev.passed != cur.passed)
         flip_rate = flips / (len(main) - 1)
