@@ -130,4 +130,7 @@ CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]   # the Vite dev server
 
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"anon": "120/min"},
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
 }

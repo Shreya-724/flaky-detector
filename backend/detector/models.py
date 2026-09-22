@@ -7,6 +7,7 @@ Relationships:
 """
 import hashlib
 import secrets
+from django.conf import settings
 
 from django.db import models
 
@@ -19,6 +20,10 @@ class Project(models.Model):
     is_public = models.BooleanField(default=False, help_text="Public projects can be read without a token.")
     # Store only a hash of the API token, like a password. Show the raw token once.
     token_hash = models.CharField(max_length=64, unique=True)
+    owner = models.ForeignKey(
+    settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projects",
+    null=True, blank=True, help_text="Null for system-seeded projects like the demo.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
