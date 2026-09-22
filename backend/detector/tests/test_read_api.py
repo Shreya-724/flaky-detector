@@ -126,3 +126,5 @@ def test_stats_counts_and_wasted_time(client, project):
     assert body["flaky_failures"] == 6
     assert body["wasted_runs"] == 6
     assert body["wasted_ci_minutes"] == 30.0
+    # 6 failures out of 36 executions, all within the last 7 days; nothing before that.
+    assert body["failure_rate"] == {"last_7d": 16.67, "prev_7d": None, "delta_pp": None}

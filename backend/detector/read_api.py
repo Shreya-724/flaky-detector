@@ -196,7 +196,26 @@ class StatsView(PublicReadMixin, APIView):
             if latest_start[(sha, job)] > started:
                 wasted_runs += 1
                 wasted_seconds += duration or 0.0
+            # Fail rate over the last 7 days vs the 7 days before that (percent of executed tests).
+        now = timezone.now()
+        executed = CaseResult.objects.filter(run__project=project).exclude(
+            outcome=CaseResult.Outcome.SKIPPED
+        )
 
+        def fail_rate(qs):
+            total = qs.count()
+            if total == 0:
+                return None
+            return round(qs.filter(outcome__in=FAIL_OUTCOMES).count() * 100 / total, 2)
+
+        last_7d = fail_rate(executed.filter(executed_at__gte=now - timedelta(days=7)))
+        prev_7d = fail_rate(
+            executed.filter(
+                executed_at__gte=now - timedelta(days=14),
+                executed_at__lt=now - timedelta(days=7),
+            )
+        )
+        delta_pp = round(last_7d - prev_7d, 2) if last_7d is not None and prev_7d is not None else None
         return Response({
             "project": {"name": project.name, "slug": project.slug,
                         "default_branch": project.default_branch},
@@ -207,4 +226,5 @@ class StatsView(PublicReadMixin, APIView):
             "flaky_failures": flaky_failures,
             "wasted_runs": wasted_runs,
             "wasted_ci_minutes": round(wasted_seconds / 60, 1),
+            "failure_rate": {"last_7d": last_7d, "prev_7d": prev_7d, "delta_pp": delta_pp},
         })
