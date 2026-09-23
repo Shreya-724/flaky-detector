@@ -1,18 +1,19 @@
-import { NavLink } from "react-router-dom";
-
-const ITEMS: { to: string; label: string; end?: boolean }[] = [
-  { to: "/", label: "Overview", end: true },
-  { to: "/tests", label: "Tests" },
-  { to: "/errors", label: "Errors" },
-];
+import { NavLink, useParams } from "react-router-dom";
 
 export default function Sidebar() {
+  const { slug } = useParams<{ slug: string }>();
+  const items = [
+    { to: `/p/${slug}`, label: "Overview", end: true },
+    { to: `/p/${slug}/tests`, label: "Tests" },
+    { to: `/p/${slug}/errors`, label: "Errors" },
+  ];
+
   return (
     <nav
       aria-label="Sections"
       className="flex shrink-0 flex-row overflow-x-auto border-b border-neutral-800 bg-panel lg:w-40 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0"
     >
-      {ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

@@ -1,11 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { paths, type ErrorGroupRow } from "../api";
 import { useFetch } from "../hooks";
 
 const PREVIEW_COUNT = 6;
 
 export default function ErrorsPreview() {
-  const { data, error } = useFetch<ErrorGroupRow[]>(paths.errors);
+  const { slug } = useParams<{ slug: string }>();
+  const { data, error } = useFetch<ErrorGroupRow[]>(slug ? paths.errors(slug) : null);
 
   return (
     <section className="flex min-w-0 flex-col">

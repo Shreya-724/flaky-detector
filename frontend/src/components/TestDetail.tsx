@@ -1,6 +1,7 @@
 import { splitName, paths, STATUS_LABEL, STATUS_TEXT, type RecentRun, type TestDetailResponse } from "../api";
 import { useFetch } from "../hooks";
 import RunChart from "./RunChart";
+import { useParams } from "react-router-dom";
 
 function RunStrip({ runs }: { runs: RecentRun[] }) {
   // The API returns newest first; read the strip left (old) to right (new).
@@ -21,7 +22,9 @@ function RunStrip({ runs }: { runs: RecentRun[] }) {
 }
 
 export default function TestDetail({ testId }: { testId: number | null }) {
-  const { data, error, loading } = useFetch<TestDetailResponse>(testId === null ? null : paths.test(testId), true);
+  const { slug } = useParams<{ slug: string }>();
+  const path = testId === null || !slug ? null : paths.test(slug, testId);
+  const { data, error, loading } = useFetch<TestDetailResponse>(path, true);
 
   if (testId === null) return <section className="p-3 text-neutral-500">Select a test to see its history.</section>;
   if (error) return <section className="p-3 text-flaky">Could not load this test: {error}</section>;

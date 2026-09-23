@@ -7,16 +7,19 @@ import { useDebounced, useFetch } from "../hooks";
 import { useLayoutData } from "../layoutContext";
 
 export default function TestsPage() {
+  const { slug, id } = useParams<{ slug: string; id?: string }>();
   const { stats } = useLayoutData();
   const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
 
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const query = useDebounced(search.trim(), 250);
 
-  const tests = useFetch<Page<TestRow>>(paths.tests({ statuses, search: query, page }), true);
+  const tests = useFetch<Page<TestRow>>(
+    slug ? paths.tests(slug, { statuses, search: query, page }) : null,
+    true,
+  );
 
   // A URL id (deep link, or a row already clicked) wins; otherwise default to the top-ranked test.
   const urlId = id ? Number(id) : null;
@@ -42,7 +45,7 @@ export default function TestsPage() {
         page={page}
         onPage={setPage}
         selectedId={selectedId}
-        onSelect={(testId) => navigate(`/tests/${testId}`)}
+        onSelect={(testId) => navigate(`/p/${slug}/tests/${testId}`)}
       />
       <TestDetail testId={selectedId} />
     </div>

@@ -1,3 +1,4 @@
+import { useParams } from "react-router-dom";
 import { paths, type Page, type Stats, type TestRow } from "../api";
 import ErrorsPreview from "../components/ErrorsPreview";
 import StatHeader from "../components/StatHeader";
@@ -6,9 +7,9 @@ import { useFetch } from "../hooks";
 import { useLayoutData } from "../layoutContext";
 
 export default function OverviewPage() {
+  const { slug } = useParams<{ slug: string }>();
   const { stats } = useLayoutData();
-  // Fetched separately (not reused from Tests page) so this page works standalone.
-  const tests = useFetch<Page<TestRow>>(paths.tests({ statuses: [], search: "", page: 1 }));
+  const tests = useFetch<Page<TestRow>>(slug ? paths.tests(slug, { statuses: [], search: "", page: 1 }) : null);
 
   return (
     <div className="flex flex-1 flex-col">
