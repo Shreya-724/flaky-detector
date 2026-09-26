@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { authPaths, type OwnedProject } from "../api";
+import { API_BASE, authPaths, badgeUrl, type OwnedProject } from "../api";
 import { useAuth } from "../auth";
 import TokenReveal from "../components/TokenReveal";
 
@@ -127,6 +127,20 @@ export default function ProjectSettingsPage() {
           >
             {busy ? "saving…" : saved ? "saved" : "save changes"}
           </button>
+        </div>
+        
+                <div className="mt-8 border-t border-neutral-800 pt-4">
+          <h2 className="text-neutral-500">Status badge</h2>
+          {project.is_public ? (
+            <>
+              <p className="mt-1 text-neutral-600">Paste this into your repo's README:</p>
+              <pre className="mt-1 overflow-x-auto border border-neutral-800 bg-black p-2 text-[11px] leading-5 text-neutral-300">
+                {`[![flaky tests](${badgeUrl(API_BASE, project.slug)})](${window.location.origin}/p/${project.slug})`}
+              </pre>
+            </>
+          ) : (
+            <p className="mt-1 text-neutral-600">Make this project public to get an embeddable badge.</p>
+          )}
         </div>
 
         <div className="mt-8 border-t border-neutral-800 pt-4">

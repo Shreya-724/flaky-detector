@@ -19,6 +19,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
+from django.http import HttpResponse
+from .badge import flaky_count_badge
 
 from .models import CaseResult, CIRun, ErrorGroup, Project, TrackedTest
 from .services import SCORING_WINDOW_DAYS
@@ -51,7 +53,7 @@ class TrackedTestSerializer(serializers.ModelSerializer):
         model = TrackedTest
         fields = [
             "id", "name", "status", "flakiness_score", "executions",
-            "conflict_commits", "failure_rate", "flip_rate", "last_seen",
+            "conflict_commits", "failure_rate", "flip_rate", "last_seen","quarantined","quarantined_at",
         ]
 
 
@@ -228,3 +230,13 @@ class StatsView(PublicReadMixin, APIView):
             "wasted_ci_minutes": round(wasted_seconds / 60, 1),
             "failure_rate": {"last_7d": last_7d, "prev_7d": prev_7d, "delta_pp": delta_pp},
         })
+class BadgeView(PublicReadMixin, APIView):
+    """GET /api/projects/<slug>/badge.svg -> an embeddable "N flaky tests" badge."""
+
+    def get(self, request, slug):
+        project = get_public_project(slug)
+        count = TrackedTest.objects.filter(project=project, status=TrackedTest.Status.FLAKY).count()
+        svg = flaky_count_badge(count)
+        response = HttpResponse(svg, content_type="image/svg+xml")
+        response["Cache-Control"] = "max-age=300"  # 5 min: fresh enough, avoids hammering on every README view
+        return response        

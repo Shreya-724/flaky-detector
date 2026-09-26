@@ -16,6 +16,8 @@ export interface TestRow {
   failure_rate: number;
   flip_rate: number;
   last_seen: string | null;
+  quarantined: boolean;
+  quarantined_at: string | null;
 }
 
 export interface Page<T> {
@@ -154,7 +156,19 @@ export const authPaths = {
   myProjects: "/api/auth/projects/",
   myProject: (slug: string): string => `/api/auth/projects/${slug}/`,
   regenerateToken: (slug: string): string => `/api/auth/projects/${slug}/regenerate-token/`,
+  quarantineTest: (slug: string, testId: number): string =>
+    `/api/auth/projects/${slug}/tests/${testId}/quarantine/`,
 };
+
+export interface QuarantineResponse {
+  id: number;
+  quarantined: boolean;
+  quarantined_at: string | null;
+}
+
+export function badgeUrl(base: string, slug: string): string {
+  return `${base}/api/projects/${slug}/badge.svg`;
+}
 
 export function splitName(name: string): [string, string] {
   const i = name.indexOf("::");

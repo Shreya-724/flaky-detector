@@ -96,6 +96,8 @@ class TrackedTest(models.Model):
     failure_rate = models.FloatField(default=0.0)
     flip_rate = models.FloatField(default=0.0)
     score_computed_at = models.DateTimeField(null=True, blank=True)
+    quarantined = models.BooleanField(default=False)
+    quarantined_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Outlet, useParams } from "react-router-dom";
-import { API_BASE, paths, type Stats } from "./api";
+import { API_BASE, authPaths, paths, type OwnedProject, type Stats } from "./api";
+import { useAuth } from "./auth";
 import AccountMenu from "./components/AccountMenu";
 import Sidebar from "./components/Sidebar";
 import { useFetch } from "./hooks";
@@ -8,6 +10,24 @@ import { LayoutDataContext } from "./layoutContext";
 export default function Layout() {
   const { slug } = useParams<{ slug: string }>();
   const stats = useFetch<Stats>(slug ? paths.stats(slug) : null);
+  const { isAuthenticated, authFetch } = useAuth();
+
+  const [isOwner, setIsOwner] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    setIsOwner(undefined);
+    if (!isAuthenticated || !slug) return;
+    let cancelled = false;
+    authFetch<OwnedProject>(authPaths.myProject(slug))
+      .then(() => {
+        if (!cancelled) setIsOwner(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsOwner(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, isAuthenticated, authFetch]);
 
   return (
     <div className="flex min-h-screen flex-col bg-black font-mono text-xs text-neutral-100">
@@ -38,7 +58,7 @@ export default function Layout() {
       <div className="flex flex-1 flex-col lg:flex-row">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col">
-          <LayoutDataContext.Provider value={{ stats: stats.data, statsError: stats.error }}>
+          <LayoutDataContext.Provider value={{ stats: stats.data, statsError: stats.error, isOwner }}>
             <Outlet />
           </LayoutDataContext.Provider>
         </main>

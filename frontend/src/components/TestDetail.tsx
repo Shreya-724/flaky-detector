@@ -1,10 +1,12 @@
-import { splitName, paths, STATUS_LABEL, STATUS_TEXT, type RecentRun, type TestDetailResponse } from "../api";
-import { useFetch } from "../hooks";
-import RunChart from "./RunChart";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { splitName, paths, STATUS_LABEL, STATUS_TEXT, type RecentRun, type TestDetailResponse, type TestRow } from "../api";
+import { useFetch } from "../hooks";
+import { useLayoutData } from "../layoutContext";
+import QuarantineControl from "./QuarantineControl";
+import RunChart from "./RunChart";
 
 function RunStrip({ runs }: { runs: RecentRun[] }) {
-  // The API returns newest first; read the strip left (old) to right (new).
   const ordered = [...runs].reverse();
   return (
     <div className="flex flex-wrap gap-px" role="img" aria-label={`Outcome of the last ${runs.length} runs`}>
@@ -23,14 +25,18 @@ function RunStrip({ runs }: { runs: RecentRun[] }) {
 
 export default function TestDetail({ testId }: { testId: number | null }) {
   const { slug } = useParams<{ slug: string }>();
+  const { isOwner } = useLayoutData();
   const path = testId === null || !slug ? null : paths.test(slug, testId);
   const { data, error, loading } = useFetch<TestDetailResponse>(path, true);
 
+  const [test, setTest] = useState<TestRow | null>(null);
+  useEffect(() => setTest(data ? data.test : null), [data]);
+
   if (testId === null) return <section className="p-3 text-neutral-500">Select a test to see its history.</section>;
   if (error) return <section className="p-3 text-flaky">Could not load this test: {error}</section>;
-  if (!data) return <section className="p-3 text-neutral-500">loading</section>;
+  if (!data || !test) return <section className="p-3 text-neutral-500">loading</section>;
 
-  const t = data.test;
+  const t = test;
   const [mod, fn] = splitName(t.name);
   const noData = t.status === "insufficient_data";
   const metrics: [string, string][] = [
@@ -80,6 +86,14 @@ export default function TestDetail({ testId }: { testId: number | null }) {
         </div>
         <RunStrip runs={data.recent} />
       </div>
+
+      {isOwner && slug && (
+        <QuarantineControl
+          slug={slug}
+          test={t}
+          onChange={(next) => setTest((prev) => (prev ? { ...prev, ...next } : prev))}
+        />
+      )}
 
       {data.errors.length > 0 && (
         <div className="px-3 py-2">

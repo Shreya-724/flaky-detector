@@ -17,8 +17,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils import timezone
 
-from .models import Project
+from .models import Project, TrackedTest
 
 User = get_user_model()
 
@@ -159,3 +160,37 @@ class RegenerateTokenView(APIView):
         project.token_hash = Project.hash_token(raw)
         project.save(update_fields=["token_hash"])
         return Response({"token": raw})
+    
+    
+    
+class QuarantineSerializer(serializers.Serializer):
+    quarantined = serializers.BooleanField()
+
+
+class TrackedTestOwnedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrackedTest
+        fields = ["id", "name", "status", "flakiness_score", "quarantined", "quarantined_at"]
+        read_only_fields = fields
+
+
+class QuarantineTestView(APIView):
+    """POST /api/auth/projects/<slug>/tests/<test_id>/quarantine/  body: {"quarantined": true|false}
+
+    Owner-only, mirroring ProjectDetailView: 404s (not 403) for a test that
+    isn't yours, so you can't probe which test ids exist on someone else's
+    project.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, slug, test_id):
+        test = get_object_or_404(TrackedTest, pk=test_id, project__slug=slug, project__owner=request.user)
+        serializer = QuarantineSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        value = serializer.validated_data["quarantined"]
+
+        test.quarantined = value
+        test.quarantined_at = timezone.now() if value else None
+        test.save(update_fields=["quarantined", "quarantined_at"])
+        return Response(TrackedTestOwnedSerializer(test).data)
