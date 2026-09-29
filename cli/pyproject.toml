@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flaky-detector-cli"
+version = "0.1.1"
+description = "Upload JUnit XML test reports to a flaky-detector project from the command line or CI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Shreya" }]
+keywords = ["testing", "pytest", "junit", "ci", "flaky-tests"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+# Deliberately zero runtime dependencies: argparse, urllib, subprocess are
+# all standard library. Keeps `pip install` instant and avoids ever needing
+# a dependency-conflict fix for a tool this small.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Shreya-724/"
+Repository = "https://github.com/Shreya-724/flaky-detector"
+
+[project.scripts]
+flaky-detector = "flaky_detector_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -12,7 +12,7 @@ export default function ErrorsPreview() {
     <section className="flex min-w-0 flex-col">
       <div className="flex items-center justify-between border-b border-neutral-800 bg-panel px-3 py-1.5 text-neutral-500">
         <h2 className="font-normal">Most common failures</h2>
-        <Link to="/errors" className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
+        <Link to={`/p/${slug}/errors`} className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
           view all errors →
         </Link>
       </div>

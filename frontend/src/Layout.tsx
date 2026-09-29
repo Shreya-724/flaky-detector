@@ -31,7 +31,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-black font-mono text-xs text-neutral-100">
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-neutral-800 bg-panel px-3 py-2">
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-neutral-800 bg-panel px-3 py-2">
         <h1 className="font-semibold">
           flaky-detector <span className="font-normal text-neutral-500">/ {slug}</span>
         </h1>
@@ -43,7 +43,6 @@ export default function Layout() {
           <AccountMenu />
         </div>
       </header>
-
       {stats.error && (
         <p className="border-b border-neutral-800 bg-panel px-3 py-2 text-flaky">
           Can't load project "{slug}" from {API_BASE} ({stats.error}). If you just created it, make sure it's

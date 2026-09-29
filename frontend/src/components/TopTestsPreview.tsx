@@ -1,14 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { splitName, STATUS_BAR, STATUS_LABEL, STATUS_TEXT, type TestRow } from "../api";
 
 const PREVIEW_COUNT = 6;
 
 export default function TopTestsPreview({ tests, error }: { tests?: TestRow[]; error?: string }) {
+  const { slug } = useParams<{ slug: string }>();
   return (
     <section className="flex min-w-0 flex-col">
       <div className="flex items-center justify-between border-b border-neutral-800 bg-panel px-3 py-1.5 text-neutral-500">
         <h2 className="font-normal">Top flaky tests</h2>
-        <Link to="/tests" className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
+        <Link to={`/p/${slug}/tests`} className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
           view all tests →
         </Link>
       </div>
@@ -22,7 +23,7 @@ export default function TopTestsPreview({ tests, error }: { tests?: TestRow[]; e
           return (
             <li key={t.id} className="border-b border-neutral-900">
               <Link
-                to={`/tests/${t.id}`}
+                to={`/p/${slug}/tests/${t.id}`}
                 className="flex items-center gap-3 px-3 py-1.5 outline-none hover:bg-panel-2 focus-visible:bg-panel-2"
               >
                 <div className="relative h-1.5 w-16 shrink-0 bg-neutral-900">

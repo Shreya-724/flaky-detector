@@ -31,6 +31,8 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-REPLACE-WITH-Y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".ngrok-free.app",".ngrok-free.dev"]
 

@@ -13,8 +13,8 @@ export interface TestRow {
   flakiness_score: number | null;
   executions: number;
   conflict_commits: number;
-  failure_rate: number;
-  flip_rate: number;
+  failure_rate: number; // fraction, 0..1
+  flip_rate: number; // fraction, 0..1
   last_seen: string | null;
   quarantined: boolean;
   quarantined_at: string | null;
@@ -141,6 +141,8 @@ export interface OwnedProject {
   default_branch: string;
   is_public: boolean;
   created_at: string;
+  slack_webhook_url: string;
+  notify_email: string;
 }
 
 export interface CreateProjectResponse {
@@ -170,11 +172,6 @@ export function badgeUrl(base: string, slug: string): string {
   return `${base}/api/projects/${slug}/badge.svg`;
 }
 
-export function splitName(name: string): [string, string] {
-  const i = name.indexOf("::");
-  return i === -1 ? ["", name] : [name.slice(0, i), name.slice(i + 2)];
-}
-
 export const STATUS_LABEL: Record<Status, string> = {
   flaky: "flaky",
   suspect: "suspect",
@@ -195,3 +192,9 @@ export const STATUS_BAR: Record<Status, string> = {
   stable: "bg-neutral-700",
   insufficient_data: "bg-neutral-800",
 };
+
+/** "tests.test_cart::test_checkout" -> ["tests.test_cart", "test_checkout"] */
+export function splitName(name: string): [string, string] {
+  const i = name.indexOf("::");
+  return i === -1 ? ["", name] : [name.slice(0, i), name.slice(i + 2)];
+}

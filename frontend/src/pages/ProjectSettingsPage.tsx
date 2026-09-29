@@ -13,6 +13,8 @@ export default function ProjectSettingsPage() {
   const [repo, setRepo] = useState("");
   const [defaultBranch, setDefaultBranch] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,6 +31,8 @@ export default function ProjectSettingsPage() {
         setRepo(p.repo);
         setDefaultBranch(p.default_branch);
         setIsPublic(p.is_public);
+        setSlackWebhookUrl(p.slack_webhook_url);
+        setNotifyEmail(p.notify_email);
       })
       .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : String(err)));
   }, [slug, authFetch]);
@@ -42,7 +46,13 @@ export default function ProjectSettingsPage() {
       const updated = await authFetch<OwnedProject>(authPaths.myProject(slug), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo, default_branch: defaultBranch, is_public: isPublic }),
+        body: JSON.stringify({
+          repo,
+          default_branch: defaultBranch,
+          is_public: isPublic,
+          slack_webhook_url: slackWebhookUrl,
+          notify_email: notifyEmail,
+        }),
       });
       setProject(updated);
       setSaved(true);
@@ -118,6 +128,28 @@ export default function ProjectSettingsPage() {
             />
             Public dashboard (viewable without logging in)
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-neutral-500">Slack webhook URL (optional)</span>
+            <input
+              value={slackWebhookUrl}
+              onChange={(e) => setSlackWebhookUrl(e.target.value)}
+              placeholder="https://hooks.slack.com/services/..."
+              className="border border-neutral-800 bg-black px-2 py-1.5 outline-none focus:border-flaky"
+            />
+            <span className="text-[11px] text-neutral-600">
+              Alerts when a test first crosses into "flaky". Create one via Slack's Incoming Webhooks app.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-neutral-500">Alert email (optional)</span>
+            <input
+              type="email"
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="team@example.com"
+              className="border border-neutral-800 bg-black px-2 py-1.5 outline-none focus:border-flaky"
+            />
+          </label>
           {saveError && <p className="text-flaky">{saveError}</p>}
           <button
             type="button"
@@ -128,8 +160,8 @@ export default function ProjectSettingsPage() {
             {busy ? "saving…" : saved ? "saved" : "save changes"}
           </button>
         </div>
-        
-                <div className="mt-8 border-t border-neutral-800 pt-4">
+
+        <div className="mt-8 border-t border-neutral-800 pt-4">
           <h2 className="text-neutral-500">Status badge</h2>
           {project.is_public ? (
             <>

@@ -83,7 +83,7 @@ SLUG_RE = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 class OwnedProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "name", "slug", "repo", "default_branch", "is_public", "created_at"]
+        fields = ["id", "name", "slug", "repo", "default_branch", "is_public", "created_at","slack_webhook_url", "notify_email",]
         read_only_fields = fields
 
 
@@ -105,7 +105,7 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
         model = Project
         # Slug is intentionally excluded: it's baked into the CI config and
         # the public dashboard URL, so changing it would break both silently.
-        fields = ["name", "repo", "default_branch", "is_public"]
+        fields = ["name", "repo", "default_branch", "is_public", "slack_webhook_url", "notify_email"]
         extra_kwargs = {f: {"required": False} for f in fields}
 
 

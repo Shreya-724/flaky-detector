@@ -1,9 +1,10 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 
+/** Rendered in the header. Just identity/entry point — the "log out" action
+ * itself lives in the sidebar, see Sidebar.tsx. */
 export default function AccountMenu() {
-  const { isAuthenticated, username, logout } = useAuth();
-  const navigate = useNavigate();
+  const { isAuthenticated, username } = useAuth();
 
   if (!isAuthenticated) {
     return (
@@ -14,20 +15,8 @@ export default function AccountMenu() {
   }
 
   return (
-    <span className="flex items-center gap-3">
-      <Link to="/projects" className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
-        {username}
-      </Link>
-      <button
-        type="button"
-        onClick={() => {
-          logout();
-          navigate("/login");
-        }}
-        className="text-neutral-500 outline-none hover:text-flaky focus-visible:text-flaky"
-      >
-        log out
-      </button>
-    </span>
+    <Link to="/projects" className="text-neutral-400 outline-none hover:text-flaky focus-visible:text-flaky">
+      {username}
+    </Link>
   );
 }

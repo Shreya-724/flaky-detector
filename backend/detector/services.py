@@ -13,10 +13,12 @@ from datetime import datetime, timedelta
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
+from django.conf import settings
 
 from .junit_parser import ERROR, FAILED, ParsedCase, ParsedReport
 from .models import CaseResult, CIRun, ErrorGroup, Project, TrackedTest
 from .scoring import Execution, compute_flakiness, error_fingerprint
+from .notifications import FlakyAlert, notify_new_flaky_tests
 
 SCORING_WINDOW_DAYS = 30
 
@@ -94,14 +96,19 @@ def _record_error_groups(project: Project, report: ParsedReport) -> dict[str, Er
 
 
 def refresh_scores(project: Project, tests: list[TrackedTest]) -> None:
-    """Recompute and cache the flakiness score for the given tests."""
+    """Recompute and cache the flakiness score for the given tests.
+
+    Also fires a Slack/email alert for any test that crosses INTO "flaky"
+    here (edge-triggered on the transition, not every time it's re-scored
+    while already flaky) — see notifications.py for why this lives here
+    rather than in a Celery task or a scheduled scan.
+    """
     since = timezone.now() - timedelta(days=SCORING_WINDOW_DAYS)
     rows = (
         CaseResult.objects
         .filter(test_id__in=[t.pk for t in tests], executed_at__gte=since)
         .exclude(outcome=CaseResult.Outcome.SKIPPED)
-        .values_list("test_id", "run__commit_sha", "run__job_name",
-                    "run__branch", "outcome", "executed_at")
+        .values_list("test_id", "run__commit_sha", "run__job_name","run__branch", "outcome", "executed_at")
     )
     by_test: dict[int, list[Execution]] = defaultdict(list)
     for test_id, sha, job, branch, outcome, executed_at in rows:
@@ -115,7 +122,9 @@ def refresh_scores(project: Project, tests: list[TrackedTest]) -> None:
         )
 
     now = timezone.now()
+    newly_flaky: list[TrackedTest] = []
     for test in tests:
+        was_flaky = test.status == TrackedTest.Status.FLAKY
         result = compute_flakiness(by_test.get(test.pk, []))
         test.status = result.status
         test.flakiness_score = result.score
@@ -124,8 +133,18 @@ def refresh_scores(project: Project, tests: list[TrackedTest]) -> None:
         test.failure_rate = result.failure_rate
         test.flip_rate = result.flip_rate
         test.score_computed_at = now
+        if not was_flaky and result.status == TrackedTest.Status.FLAKY:
+            newly_flaky.append(test)
     TrackedTest.objects.bulk_update(tests, _SCORE_FIELDS, batch_size=500)
 
+    if newly_flaky:
+        dashboard_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
+        dashboard_url = f"{dashboard_base}/p/{project.slug}"
+        alerts = [
+            FlakyAlert(name=t.name, score=t.flakiness_score, detail_url=f"{dashboard_url}/tests/{t.pk}")
+            for t in newly_flaky
+        ]
+        notify_new_flaky_tests(project, dashboard_url, alerts)
 
 @transaction.atomic
 def ingest_report(project: Project, meta: RunMeta, report: ParsedReport) -> IngestResult:

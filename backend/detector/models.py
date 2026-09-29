@@ -20,6 +20,8 @@ class Project(models.Model):
     is_public = models.BooleanField(default=False, help_text="Public projects can be read without a token.")
     # Store only a hash of the API token, like a password. Show the raw token once.
     token_hash = models.CharField(max_length=64, unique=True)
+    slack_webhook_url = models.URLField(blank=True, help_text="Incoming webhook URL for flaky-test alerts.")
+    notify_email = models.EmailField(blank=True, help_text="Email address for flaky-test alerts.")
     owner = models.ForeignKey(
     settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projects",
     null=True, blank=True, help_text="Null for system-seeded projects like the demo.",
