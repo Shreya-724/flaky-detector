@@ -12,12 +12,13 @@ import secrets
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.utils import timezone
 
 from .models import Project, TrackedTest
 
@@ -49,6 +50,20 @@ class RegisterSerializer(serializers.Serializer):
         return User.objects.create_user(**validated_data)
 
 
+class AuthTokensSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    username = serializers.CharField()
+
+
+@extend_schema(
+    tags=["auth"],
+    summary="Create an account",
+    description="Registers a new user and logs them in immediately — the response carries JWTs, "
+                "the same as POST /api/auth/token/ would.",
+    request=RegisterSerializer,
+    responses={201: AuthTokensSerializer},
+)
 class RegisterView(APIView):
     """POST /api/auth/register/ -> creates the user and logs them in (returns JWTs)."""
 
@@ -66,6 +81,12 @@ class RegisterView(APIView):
         )
 
 
+class MeResponseSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    email = serializers.EmailField()
+
+
+@extend_schema(tags=["auth"], summary="The logged-in user's identity", responses=MeResponseSerializer)
 class MeView(APIView):
     """GET /api/auth/me/ -> the logged-in user's identity."""
 
@@ -83,7 +104,10 @@ SLUG_RE = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 class OwnedProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "name", "slug", "repo", "default_branch", "is_public", "created_at","slack_webhook_url", "notify_email",]
+        fields = [
+            "id", "name", "slug", "repo", "default_branch", "is_public", "created_at",
+            "slack_webhook_url", "notify_email",
+        ]
         read_only_fields = fields
 
 
@@ -109,15 +133,28 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {f: {"required": False} for f in fields}
 
 
+class CreateProjectResponseSerializer(serializers.Serializer):
+    project = OwnedProjectSerializer()
+    token = serializers.CharField(help_text="Shown once. Not retrievable again — see regenerate-token.")
+
+
 class MyProjectsView(APIView):
     """GET /api/auth/projects/  (list mine)   POST /api/auth/projects/  (create)"""
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(tags=["projects"], summary="List my projects", responses=OwnedProjectSerializer(many=True))
     def get(self, request):
         projects = Project.objects.filter(owner=request.user).order_by("-created_at")
         return Response(OwnedProjectSerializer(projects, many=True).data)
 
+    @extend_schema(
+        tags=["projects"],
+        summary="Create a project",
+        description="Returns a fresh CI upload token in the response. This is the only time it's shown.",
+        request=ProjectCreateSerializer,
+        responses={201: CreateProjectResponseSerializer},
+    )
     def post(self, request):
         serializer = ProjectCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -137,9 +174,17 @@ class ProjectDetailView(APIView):
     def _get(self, request, slug):
         return get_object_or_404(Project, slug=slug, owner=request.user)
 
+    @extend_schema(tags=["projects"], summary="Get one of my projects", responses=OwnedProjectSerializer)
     def get(self, request, slug):
         return Response(OwnedProjectSerializer(self._get(request, slug)).data)
 
+    @extend_schema(
+        tags=["projects"],
+        summary="Update project settings",
+        description="Slug can't be changed here (it's baked into CI config and the public dashboard URL).",
+        request=ProjectUpdateSerializer,
+        responses=OwnedProjectSerializer,
+    )
     def patch(self, request, slug):
         project = self._get(request, slug)
         serializer = ProjectUpdateSerializer(project, data=request.data, partial=True)
@@ -148,6 +193,17 @@ class ProjectDetailView(APIView):
         return Response(OwnedProjectSerializer(project).data)
 
 
+class TokenResponseSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+@extend_schema(
+    tags=["projects"],
+    summary="Regenerate a project's CI upload token",
+    description="Invalidates the old token immediately. Returns the new one, shown exactly once.",
+    request=None,
+    responses={200: TokenResponseSerializer},
+)
 class RegenerateTokenView(APIView):
     """POST /api/auth/projects/<slug>/regenerate-token/ -> invalidates the old
     token immediately and returns the new one, shown exactly once."""
@@ -160,9 +216,8 @@ class RegenerateTokenView(APIView):
         project.token_hash = Project.hash_token(raw)
         project.save(update_fields=["token_hash"])
         return Response({"token": raw})
-    
-    
-    
+
+
 class QuarantineSerializer(serializers.Serializer):
     quarantined = serializers.BooleanField()
 
@@ -174,13 +229,16 @@ class TrackedTestOwnedSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+@extend_schema(
+    tags=["projects"],
+    summary="Quarantine or unquarantine a test",
+    description="Owner-only. 404s (not 403) for a test that isn't yours, so you can't probe which "
+                "test ids exist on someone else's project.",
+    request=QuarantineSerializer,
+    responses=TrackedTestOwnedSerializer,
+)
 class QuarantineTestView(APIView):
-    """POST /api/auth/projects/<slug>/tests/<test_id>/quarantine/  body: {"quarantined": true|false}
-
-    Owner-only, mirroring ProjectDetailView: 404s (not 403) for a test that
-    isn't yours, so you can't probe which test ids exist on someone else's
-    project.
-    """
+    """POST /api/auth/projects/<slug>/tests/<test_id>/quarantine/  body: {"quarantined": true|false}"""
 
     permission_classes = [IsAuthenticated]
 

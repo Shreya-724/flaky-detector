@@ -1,6 +1,8 @@
 """HTTP layer: token auth, request validation, and the ingest endpoint."""
 from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import serializers, status
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.exceptions import AuthenticationFailed
@@ -39,13 +41,31 @@ class ProjectTokenAuthentication(BaseAuthentication):
         return "Bearer"
 
 
+class ProjectTokenScheme(OpenApiAuthenticationExtension):
+    """Registers ProjectTokenAuthentication as its own named scheme in the
+    OpenAPI docs, distinct from the JWT scheme used by /api/auth/. Without
+    this, drf-spectacular would either warn or lump it in with JWT."""
+
+    target_class = "detector.api.ProjectTokenAuthentication"
+    name = "ProjectToken"
+
+    def get_security_definition(self, auto_schema):
+        return {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "Project token",
+            "description": "The per-project CI upload token, shown once when the project is created "
+                            "(or when its token is regenerated).",
+        }
+
+
 class HasProjectToken(BasePermission):
     def has_permission(self, request, view):
         return isinstance(request.auth, Project)
 
 
 class IngestSerializer(serializers.Serializer):
-    report = serializers.FileField()
+    report = serializers.FileField(help_text="JUnit XML report, e.g. from `pytest --junitxml=report.xml`")
     run_id = serializers.CharField(max_length=64)
     run_attempt = serializers.IntegerField(min_value=1, default=1)
     job_name = serializers.CharField(max_length=100, allow_blank=True, default="")
@@ -61,6 +81,29 @@ class IngestSerializer(serializers.Serializer):
         return value
 
 
+class IngestResponseSerializer(serializers.Serializer):
+    run = serializers.IntegerField()
+    created = serializers.BooleanField()
+    tests_in_report = serializers.IntegerField()
+    tests_scored = serializers.IntegerField()
+
+
+@extend_schema(
+    tags=["ingest"],
+    summary="Upload a JUnit XML test report",
+    description="Authenticate with `Authorization: Bearer <project token>`. Idempotent: uploading "
+                "the same run_id/run_attempt/job_name again returns 200 instead of 201 and changes nothing.",
+    request=IngestSerializer,
+    responses={201: IngestResponseSerializer, 200: IngestResponseSerializer},
+    examples=[
+        OpenApiExample(
+            "Created",
+            value={"run": 42, "created": True, "tests_in_report": 13, "tests_scored": 13},
+            response_only=True,
+            status_codes=["201"],
+        ),
+    ],
+)
 class IngestView(APIView):
     """POST /api/ingest/  (multipart: report=<xml file> + run metadata)"""
 

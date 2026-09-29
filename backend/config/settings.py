@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework', 
+    'rest_framework_simplejwt',
+    'drf_spectacular',
     'corsheaders', 
     'detector'
 ]
@@ -141,5 +143,26 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"anon": "120/min"},
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "flaky-detector API",
+    "DESCRIPTION": (
+        "Detects flaky tests from CI history. Upload JUnit XML reports from CI, "
+        "browse ranked flaky tests on a public dashboard, and manage projects "
+        "(auth required) — including quarantining tests and rotating CI tokens."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "TAGS": [
+        {"name": "ingest", "description": "CI uploads a JUnit XML report here. Authenticated with a per-project token, not JWT."},
+        {"name": "tests", "description": "Public, unauthenticated: ranked flaky tests and per-test history."},
+        {"name": "errors", "description": "Public: grouped failure messages."},
+        {"name": "stats", "description": "Public: headline dashboard numbers."},
+        {"name": "badge", "description": "Public: embeddable SVG status badge for READMEs."},
+        {"name": "auth", "description": "Account registration and login. Returns JWTs."},
+        {"name": "projects", "description": "Owner-only project management. Requires a JWT (see auth)."},
     ],
 }

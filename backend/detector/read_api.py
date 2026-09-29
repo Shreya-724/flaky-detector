@@ -10,8 +10,10 @@ from datetime import timedelta
 
 from django.db.models import Count, F, Max, Q
 from django.db.models.functions import TruncDate
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -19,9 +21,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
-from django.http import HttpResponse
-from .badge import flaky_count_badge
 
+from .badge import flaky_count_badge
 from .models import CaseResult, CIRun, ErrorGroup, Project, TrackedTest
 from .services import SCORING_WINDOW_DAYS
 
@@ -53,10 +54,12 @@ class TrackedTestSerializer(serializers.ModelSerializer):
         model = TrackedTest
         fields = [
             "id", "name", "status", "flakiness_score", "executions",
-            "conflict_commits", "failure_rate", "flip_rate", "last_seen","quarantined","quarantined_at",
+            "conflict_commits", "failure_rate", "flip_rate", "last_seen",
+            "quarantined", "quarantined_at",
         ]
 
 
+@extend_schema(tags=["tests"], summary="List a project's tests, ranked by flakiness score")
 class TrackedTestListView(PublicReadMixin, ListAPIView):
     """GET /api/projects/<slug>/tests/?status=flaky,suspect&search=cart&page=1"""
 
@@ -79,6 +82,43 @@ class TrackedTestListView(PublicReadMixin, ListAPIView):
         return qs.order_by(F("flakiness_score").desc(nulls_last=True), "name")
 
 
+class DailyPointSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    runs = serializers.IntegerField()
+    failures = serializers.IntegerField()
+
+
+class RecentRunSerializer(serializers.Serializer):
+    executed_at = serializers.DateTimeField()
+    outcome = serializers.CharField()
+    commit = serializers.CharField()
+    branch = serializers.CharField()
+    attempt = serializers.IntegerField()
+    duration_ms = serializers.IntegerField(allow_null=True)
+
+
+class TestErrorSerializer(serializers.Serializer):
+    group_id = serializers.IntegerField()
+    message = serializers.CharField()
+    count = serializers.IntegerField()
+    last_seen = serializers.DateTimeField()
+
+
+class TestDetailSerializer(serializers.Serializer):
+    """Shape of TrackedTestDetailView's response, for documentation only —
+    the view builds this dict by hand rather than instantiating this class."""
+
+    test = TrackedTestSerializer()
+    daily = DailyPointSerializer(many=True)
+    recent = RecentRunSerializer(many=True)
+    errors = TestErrorSerializer(many=True)
+
+
+@extend_schema(
+    tags=["tests"],
+    summary="One test's score, daily pass/fail counts, recent runs and top errors",
+    responses=TestDetailSerializer,
+)
 class TrackedTestDetailView(PublicReadMixin, APIView):
     """GET /api/projects/<slug>/tests/<id>/ : score, daily counts, recent runs, top errors"""
 
@@ -135,6 +175,16 @@ class TrackedTestDetailView(PublicReadMixin, APIView):
         })
 
 
+class ErrorGroupSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    message = serializers.CharField()
+    occurrences = serializers.IntegerField()
+    tests_affected = serializers.IntegerField()
+    first_seen = serializers.DateTimeField()
+    last_seen = serializers.DateTimeField()
+
+
+@extend_schema(tags=["errors"], summary="Most common failure messages, grouped by pattern", responses=ErrorGroupSerializer(many=True))
 class ErrorListView(PublicReadMixin, APIView):
     """GET /api/projects/<slug>/errors/ : most common failure messages"""
 
@@ -158,6 +208,45 @@ class ErrorListView(PublicReadMixin, APIView):
         ])
 
 
+class ProjectSummarySerializer(serializers.Serializer):
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+    default_branch = serializers.CharField()
+
+
+class TestCountsSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    flaky = serializers.IntegerField()
+    suspect = serializers.IntegerField()
+    stable = serializers.IntegerField()
+    insufficient_data = serializers.IntegerField()
+
+
+class RunCountsSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    commits = serializers.IntegerField()
+
+
+class FailureRateSerializer(serializers.Serializer):
+    last_7d = serializers.FloatField(allow_null=True)
+    prev_7d = serializers.FloatField(allow_null=True)
+    delta_pp = serializers.FloatField(allow_null=True)
+
+
+class StatsSerializer(serializers.Serializer):
+    """Shape of StatsView's response, for documentation only."""
+
+    project = ProjectSummarySerializer()
+    window_days = serializers.IntegerField()
+    tests = TestCountsSerializer()
+    runs = RunCountsSerializer()
+    flaky_failures = serializers.IntegerField()
+    wasted_runs = serializers.IntegerField()
+    wasted_ci_minutes = serializers.FloatField()
+    failure_rate = FailureRateSerializer()
+
+
+@extend_schema(tags=["stats"], summary="Headline numbers for the dashboard header", responses=StatsSerializer)
 class StatsView(PublicReadMixin, APIView):
     """GET /api/projects/<slug>/stats/ : headline numbers for the dashboard"""
 
@@ -177,8 +266,6 @@ class StatsView(PublicReadMixin, APIView):
             outcome__in=FAIL_OUTCOMES,
         ).count()
 
-        # Estimated CI time wasted: runs that contained a failure of a currently-flaky
-        # test AND were followed by a later attempt on the same commit and job.
         latest_start = {}
         for sha, job, started in runs.values_list("commit_sha", "job_name", "started_at"):
             key = (sha, job)
@@ -198,7 +285,7 @@ class StatsView(PublicReadMixin, APIView):
             if latest_start[(sha, job)] > started:
                 wasted_runs += 1
                 wasted_seconds += duration or 0.0
-            # Fail rate over the last 7 days vs the 7 days before that (percent of executed tests).
+
         now = timezone.now()
         executed = CaseResult.objects.filter(run__project=project).exclude(
             outcome=CaseResult.Outcome.SKIPPED
@@ -218,18 +305,29 @@ class StatsView(PublicReadMixin, APIView):
             )
         )
         delta_pp = round(last_7d - prev_7d, 2) if last_7d is not None and prev_7d is not None else None
+
         return Response({
             "project": {"name": project.name, "slug": project.slug,
                         "default_branch": project.default_branch},
             "window_days": SCORING_WINDOW_DAYS,
             "tests": {"total": sum(by_status.values()), **by_status},
             "runs": {"total": runs.count(),
-                    "commits": runs.values("commit_sha").distinct().count()},
+                     "commits": runs.values("commit_sha").distinct().count()},
             "flaky_failures": flaky_failures,
             "wasted_runs": wasted_runs,
             "wasted_ci_minutes": round(wasted_seconds / 60, 1),
             "failure_rate": {"last_7d": last_7d, "prev_7d": prev_7d, "delta_pp": delta_pp},
         })
+
+
+@extend_schema(
+    tags=["badge"],
+    summary="Embeddable SVG badge showing the current flaky-test count",
+    description="Returns an SVG image (image/svg+xml), not JSON. Embed with "
+                "`![flaky tests](.../badge.svg)` in a README.",
+    responses={200: {"content": {"image/svg+xml": {"schema": {"type": "string"}}}}},
+    examples=[OpenApiExample("4 flaky tests", value="<svg ...>...</svg>")],
+)
 class BadgeView(PublicReadMixin, APIView):
     """GET /api/projects/<slug>/badge.svg -> an embeddable "N flaky tests" badge."""
 
@@ -238,5 +336,5 @@ class BadgeView(PublicReadMixin, APIView):
         count = TrackedTest.objects.filter(project=project, status=TrackedTest.Status.FLAKY).count()
         svg = flaky_count_badge(count)
         response = HttpResponse(svg, content_type="image/svg+xml")
-        response["Cache-Control"] = "max-age=300"  # 5 min: fresh enough, avoids hammering on every README view
-        return response        
+        response["Cache-Control"] = "max-age=300"
+        return response
