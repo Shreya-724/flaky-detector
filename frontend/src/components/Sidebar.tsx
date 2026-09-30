@@ -23,10 +23,10 @@ export default function Sidebar() {
             to={item.to}
             end={item.end}
             className={({ isActive }: { isActive: boolean }) =>
-              `whitespace-nowrap border-b-2 px-3 py-2 outline-none lg:border-b-0 lg:border-l-2 lg:px-4 ${
+              `whitespace-nowrap border-b-2 px-3 py-2 outline-none transition-colors duration-150 lg:border-b-0 lg:border-l-2 lg:px-4 ${
                 isActive
-                  ? "border-flaky text-flaky"
-                  : "border-transparent text-neutral-500 hover:text-neutral-200 focus-visible:text-neutral-200"
+                  ? "border-flaky bg-panel-2 text-flaky"
+                  : "border-transparent text-neutral-500 hover:bg-panel-2 hover:text-neutral-200 focus-visible:bg-panel-2 focus-visible:text-neutral-200"
               }`
             }
           >
@@ -41,7 +41,7 @@ export default function Sidebar() {
             logout();
             navigate("/login");
           }}
-          className="whitespace-nowrap border-t border-neutral-800 px-3 py-2 text-left text-neutral-600 outline-none hover:text-flaky focus-visible:text-flaky lg:mt-auto lg:px-4"
+          className="whitespace-nowrap border-t border-neutral-800 px-3 py-2 text-left text-neutral-600 outline-none transition-colors duration-150 hover:bg-panel-2 hover:text-flaky focus-visible:bg-panel-2 focus-visible:text-flaky lg:mt-auto lg:px-4"
         >
           log out
         </button>

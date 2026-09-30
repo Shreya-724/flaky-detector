@@ -1,7 +1,7 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { DEFAULT_PROJECT_SLUG } from "./api";
+import { Route, Routes } from "react-router-dom";
 import Layout from "./Layout";
 import ErrorsPage from "./pages/ErrorsPage";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NewProjectPage from "./pages/NewProjectPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -51,7 +51,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
-      <Route path="/" element={<Navigate to={`/p/${DEFAULT_PROJECT_SLUG}`} replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

@@ -36,7 +36,7 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
             required
-            className="border border-neutral-800 bg-black px-2 py-1.5 text-neutral-100 outline-none focus:border-flaky"
+            className="border border-neutral-800 bg-black px-2 py-1.5 text-neutral-100 outline-none transition-colors duration-150 focus:border-flaky"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -47,14 +47,14 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
-            className="border border-neutral-800 bg-black px-2 py-1.5 text-neutral-100 outline-none focus:border-flaky"
+            className="border border-neutral-800 bg-black px-2 py-1.5 text-neutral-100 outline-none transition-colors duration-150 focus:border-flaky"
           />
         </label>
         {error && <p className="text-flaky">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          className="mt-1 border border-flaky/60 bg-flaky/10 py-1.5 text-flaky outline-none hover:bg-flaky/20 focus-visible:bg-flaky/20 disabled:opacity-50"
+          className="mt-1 border border-flaky/60 bg-flaky/10 py-1.5 text-flaky outline-none transition-colors duration-150 hover:bg-flaky/20 focus-visible:bg-flaky/20 disabled:opacity-50"
         >
           {busy ? "logging in…" : "log in"}
         </button>

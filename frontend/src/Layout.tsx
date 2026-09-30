@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useParams } from "react-router-dom";
+import { Link, Outlet, useParams } from "react-router-dom";
 import { API_BASE, authPaths, paths, type OwnedProject, type Stats } from "./api";
 import { useAuth } from "./auth";
 import AccountMenu from "./components/AccountMenu";
@@ -12,6 +12,9 @@ export default function Layout() {
   const stats = useFetch<Stats>(slug ? paths.stats(slug) : null);
   const { isAuthenticated, authFetch } = useAuth();
 
+  // Quietly check whether the logged-in user owns this project, so owner-only
+  // controls (quarantine) can show up on what's otherwise a public page.
+  // A 404 here just means "not yours" (or not logged in) — never surfaced as an error.
   const [isOwner, setIsOwner] = useState<boolean | undefined>(undefined);
   useEffect(() => {
     setIsOwner(undefined);
@@ -31,9 +34,12 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-black font-mono text-xs text-neutral-100">
-            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-neutral-800 bg-panel px-3 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-neutral-800 bg-panel px-3 py-2">
         <h1 className="font-semibold">
-          flaky-detector <span className="font-normal text-neutral-500">/ {slug}</span>
+          <Link to="/" className="outline-none transition-colors duration-150 hover:text-flaky focus-visible:text-flaky">
+            <span className="text-flaky">●</span> flaky-detector
+          </Link>{" "}
+          <span className="font-normal text-neutral-500">/ {slug}</span>
         </h1>
         <div className="flex items-center gap-3">
           <span className="text-neutral-500">
@@ -43,6 +49,7 @@ export default function Layout() {
           <AccountMenu />
         </div>
       </header>
+
       {stats.error && (
         <p className="border-b border-neutral-800 bg-panel px-3 py-2 text-flaky">
           Can't load project "{slug}" from {API_BASE} ({stats.error}). If you just created it, make sure it's
