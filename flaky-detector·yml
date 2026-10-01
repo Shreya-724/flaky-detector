@@ -1,0 +1,36 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest --junitxml=report.xml
+
+      # Runs even if the tests above failed, so a failing/flaky run still gets recorded.
+      # The backend runs on a free tier that sleeps when idle and takes about a minute to
+      # wake, so this waits and retries. Retrying is safe: ingestion is idempotent.
+      - name: Upload results to flaky-detector
+        if: always()
+        run: |
+          curl -sS -f -X POST "${{ vars.FLAKY_DETECTOR_URL }}/api/ingest/" \
+            --retry 5 --retry-delay 15 --retry-connrefused --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.FLAKY_DETECTOR_TOKEN }}" \
+            -F "report=@report.xml" \
+            -F "run_id=${{ github.run_id }}" \
+            -F "run_attempt=${{ github.run_attempt }}" \
+            -F "commit_sha=${{ github.sha }}" \
+            -F "branch=${{ github.ref_name }}"

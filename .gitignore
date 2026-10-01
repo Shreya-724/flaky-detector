@@ -10,3 +10,4 @@ dist/
 .DS_Store
 '@ | Set-Content -Encoding ascii ..\.gitignorereport.xml
 data_backup.json
+backend/staticfiles/
