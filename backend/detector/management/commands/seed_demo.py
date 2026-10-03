@@ -3,10 +3,15 @@ python manage.py seed_demo [--commits 150] [--seed 42] [--reset]
 
 Fills the database with fake CI history by pushing it through the real ingest
 pipeline (ingest_report), so it doubles as a load test of that code path.
+
+With --reset, the delete and the re-insert happen inside ONE transaction. On
+Postgres, anyone loading the dashboard keeps seeing the old data until the new
+data is committed, so a scheduled refresh never shows an empty demo.
 """
 from collections import Counter
 
 from django.core.management.base import BaseCommand
+from django.db import connection, transaction
 from django.db.models import F
 
 from detector.junit_parser import ParsedReport
@@ -26,7 +31,11 @@ class Command(BaseCommand):
         parser.add_argument("--reset", action="store_true",
                             help="Delete the existing demo project (and its data) first")
 
+    @transaction.atomic
     def handle(self, *args, **opts):
+        # Which database are we about to write to? Vendor only (never the host or password).
+        self.stdout.write(f"Database: {connection.vendor}")
+
         if opts["reset"]:
             Project.objects.filter(slug=SLUG).delete()
 
